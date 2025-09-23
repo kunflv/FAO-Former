@@ -17,7 +17,6 @@ from mmdet.models.task_modules.prior_generators import MlvlPointGenerator
 from mmdet.models.layers.positional_encoding import SinePositionalEncoding
 from mmdet.models.layers.transformer import Mask2FormerTransformerEncoder
 
-# from kan_mask2former.use_module.FDConv_initialversion import FDConv_initialversion
 from .FDConv import FDConv
 from .DeformableSelfAttention import DeformableNeighborhoodAttention
 
@@ -284,3 +283,4 @@ class MSDFDCPixelDecoder(BaseModule):
 
         mask_feature = self.mask_feature(fused_outputs[-1])
         return mask_feature, multi_scale_features
+
