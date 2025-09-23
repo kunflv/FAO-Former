@@ -24,7 +24,7 @@ grad-cam = 1.5.4
 4. Train and Evaluation
 
 # Dataset
-Download the [Cityscapes](https://www.cityscapes-dataset.com/) dataset：
+Download the [Cityscapes](https://www.cityscapes-dataset.com/) dataset.
 
 # Train
 
