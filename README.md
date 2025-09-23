@@ -31,9 +31,7 @@ Catalogue structure of the [Cityscapes](https://www.cityscapes-dataset.com/)：
 To train FAO-Former, run the training script below.
 
 ```
-python ./train.py \
-${CONFIG_FILE} \
-[optional arguments]
+python ./train.py ${CONFIG_FILE} --resume --cfg-options load_from=${CHECKPOINT}
 ```
 
 For instance：
@@ -44,10 +42,10 @@ python ./train.py configs/FAO-Former_t-tood_r50_k13.py
 
 # Test
 
-    To test FAO-Former, run the testing script below.
+To test FAO-Former, run the testing script below.
     
 ```
-python tools/test.py ${CONFIG_FILE} ${CHECKPOINT_FILE} [optional arguments]
+python ./test.py ${CONFIG_FILE} ${CHECKPOINT_FILE} [optional arguments]
 ```  
 
 
