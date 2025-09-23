@@ -17,22 +17,21 @@ from mmseg.utils import ConfigType, SampleList
 
 import copy
 from torch.nn.functional import normalize
-from kan_mask2former.use_module.kan import KAN
 from kan_mask2former.use_module import MoKLayer
 
-# def orthogonal_query_init(x):
-#     """
-#         计算正交矩阵 A
-#         返回:
-#         A (torch.Tensor): 正交矩阵
-#     """
-#     I = torch.eye(x.shape[-1], device=x.device)
-#     A = copy.deepcopy(I)
-#     x = normalize(x, p=2.0, dim=-1)
-#     # for i in range(self.feat_channels):
-#     for v in x:
-#         A = A @ (I - 2 * torch.outer(v, v))
-#     return A[:x.shape[0]]
+def orthogonal_query_init(x):
+    """
+        计算正交矩阵 A
+        返回:
+        A (torch.Tensor): 正交矩阵
+    """
+    I = torch.eye(x.shape[-1], device=x.device)
+    A = copy.deepcopy(I)
+    x = normalize(x, p=2.0, dim=-1)
+    # for i in range(self.feat_channels):
+    for v in x:
+        A = A @ (I - 2 * torch.outer(v, v))
+    return A[:x.shape[0]]
 
 @MODELS.register_module()
 class Mask2FormerHead_Ort_Seg(Mask2FormerHead_Ort_Det):
@@ -61,11 +60,14 @@ class Mask2FormerHead_Ort_Seg(Mask2FormerHead_Ort_Det):
         self.ignore_index = ignore_index
 
         feat_channels = kwargs['feat_channels']
-        self.cls_embed = nn.Linear(feat_channels, self.num_classes + 1)
-        # self.cls_embed = MoKLayer(feat_channels, self.num_classes + 1, experts_type="L")
-        # self.mask_embed = MoKLayer(feat_channels, feat_channels, experts_type="V")
-        # self.cls_embed = KAN([feat_channels, 512, self.num_classes+1])
-        # self.mask_embed = KAN([feat_channels, 512, 256, feat_channels])
+        # self.cls_embed = nn.Linear(feat_channels, self.num_classes + 1)
+        self.cls_embed = MoKLayer(feat_channels, self.num_classes + 1, experts_type="L")
+        self.mask_embed = MoKLayer(feat_channels, feat_channels, experts_type="V")
+
+        # 定义L2损失约束queries正交化
+        self.l2_loss = nn.MSELoss()
+        # 创建可学习的正交初始化query_feat
+        self.query_feat.weight = nn.Parameter(orthogonal_query_init(self.query_feat.weight))
 
     def _seg_data_to_instance_data(self, batch_data_samples: SampleList):
         """Perform forward propagation to convert paradigm from MMSegmentation
@@ -138,11 +140,27 @@ class Mask2FormerHead_Ort_Seg(Mask2FormerHead_Ort_Det):
             batch_data_samples)
 
         # forward
-        all_cls_scores, all_mask_preds = self(x, batch_data_samples)
+        # all_cls_scores, all_mask_preds = self(x, batch_data_samples)
+        all_cls_scores, all_mask_preds, all_queries = self(x, batch_data_samples)
 
         # loss
         losses = self.loss_by_feat(all_cls_scores, all_mask_preds,
                                    batch_gt_instances, batch_img_metas)
+
+        """计算queries与E的L2损失"""
+        loss_queries = []
+        for id, query_pred in enumerate(all_queries):
+            query_pred = normalize(query_pred, p=2, dim=-1)  # 最后一个维度进行二范数归一化
+            y_pred = torch.matmul(query_pred, query_pred.transpose(-1, -2))
+            # y_pred = normalize(y_pred, p=2, dim=-1)  # 最后一个维度进行二范数归一化
+            y_true = torch.eye(query_pred.shape[1], device=query_pred.device)
+            y_true = y_true.unsqueeze(0).repeat(query_pred.shape[0], 1, 1)
+            query_loss = self.l2_loss(y_pred, y_true) * 1.0  # new added loss weight
+            loss_queries.append(query_loss)
+
+        losses['loss_query'] = loss_queries[-1]
+        for id, loss_query in enumerate(loss_queries[:-1]):
+            losses[f"d{id}.loss_query"] = loss_query
 
         return losses
 
@@ -165,7 +183,9 @@ class Mask2FormerHead_Ort_Seg(Mask2FormerHead_Ort_Det):
             SegDataSample(metainfo=metainfo) for metainfo in batch_img_metas
         ]
 
-        all_cls_scores, all_mask_preds = self(x, batch_data_samples)
+        # all_cls_scores, all_mask_preds = self(x, batch_data_samples)
+        all_cls_scores, all_mask_preds, all_queries = self(x, batch_data_samples)
+
         mask_cls_results = all_cls_scores[-1]
         mask_pred_results = all_mask_preds[-1]
         if 'pad_shape' in batch_img_metas[0]:
