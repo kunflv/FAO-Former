@@ -51,7 +51,7 @@ python ./test.py ${CONFIG_FILE} ${CHECKPOINT_FILE} [optional arguments]
 For instance：
 
 ```
-python ./test.py configs/FAO_former_r101_MSDFDConvPD_8xb2-60epoch_cityscapes-512x1024.py.py 
+python ./test.py configs/FAO_former_r101_MSDFDConvPD_8xb2-60epoch_cityscapes-512x1024.py checkpoints/ckpt_FAO_former_r101_Cityscapes.pth
 ```
 
 ## Acknowledgement
