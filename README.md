@@ -37,7 +37,7 @@ python ./train.py ${CONFIG_FILE} --resume --cfg-options load_from=${CHECKPOINT}
 For instance：
 
 ```
-python ./train.py configs/FAO-Former_t-tood_r50_k13.py
+python ./train.py configs/FAO_former_r101_MSDFDConvPD_8xb2-60epoch_cityscapes-512x1024.py
 ```
 
 # Test
@@ -48,6 +48,11 @@ To test FAO-Former, run the testing script below.
 python ./test.py ${CONFIG_FILE} ${CHECKPOINT_FILE} [optional arguments]
 ```  
 
+For instance：
+
+```
+python ./test.py configs/FAO_former_r101_MSDFDConvPD_8xb2-60epoch_cityscapes-512x1024.py.py 
+```
 
 ## Acknowledgement
 
