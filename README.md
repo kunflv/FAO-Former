@@ -24,7 +24,7 @@ grad-cam = 1.5.4
 4. Train and Evaluation
 
 # Dataset
-Catalogue structure of the [Cityscapes](https://www.cityscapes-dataset.com/)：
+Structure of the [Cityscapes](https://www.cityscapes-dataset.com/)：
 
 # Train
 
