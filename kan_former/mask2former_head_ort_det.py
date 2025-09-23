@@ -15,12 +15,11 @@ from mmdet.registry import MODELS, TASK_UTILS
 from mmdet.structures import SampleList
 from mmdet.utils import ConfigType, OptConfigType, OptMultiConfig, reduce_mean
 from mmdet.models.layers import Mask2FormerTransformerDecoder, SinePositionalEncoding
+# from mmdet.models.layers import SinePositionalEncoding
+# from kan_mask2former.custome_module.transformer import K_Mask2FormerTransformerDecoder as Mask2FormerTransformerDecoder
 from mmdet.models.utils import get_uncertain_point_coords_with_randomness
 from mmdet.models.dense_heads.anchor_free_head import AnchorFreeHead
 from mmdet.models.dense_heads.maskformer_head import MaskFormerHead
-
-from kan_mask2former.use_module import SCAM, InceptionDWConv2d, EAA, ELAB, SELayer, FICS, DEAB, PPA, MoKLayer, RFAConv,\
-                                       FDConv
 
 @MODELS.register_module()
 class Mask2FormerHead_Ort_Det(MaskFormerHead):
@@ -134,23 +133,6 @@ class Mask2FormerHead_Ort_Det(MaskFormerHead):
         # from low resolution to high resolution
         self.level_embed = nn.Embedding(self.num_transformer_feat_level,
                                         feat_channels)
-
-        """类对象实例化"""
-        # self.PPA_Pixel_decoder_input = ModuleList()
-        # # self.RFAConv_Pixel_decoder_input = ModuleList()
-        # channel_dim = [256, 512, 1024, 2048]
-        # for i in range(num_transformer_feat_level + 1):
-        #     dim = channel_dim[i]
-        #     self.PPA_Pixel_decoder_input.append(PPA(dim, dim))
-        #     # self.RFAConv_Pixel_decoder_input.append(RFAConv(dim, dim))
-
-        """门控卷积层"""
-        # self.gate_convs = nn.ModuleList()
-        # for i in range(self.num_transformer_feat_level + 1):
-        #     dim = channel_dim[i]
-        #     self.gate_convs.append(
-        #         nn.Conv2d(2 * dim, dim, kernel_size=1)
-        #     )
 
         self.cls_embed = nn.Linear(feat_channels, self.num_classes + 1)
         self.mask_embed = nn.Sequential(
@@ -353,22 +335,8 @@ class Mask2FormerHead_Ort_Det(MaskFormerHead):
 
         return loss_cls, loss_mask, loss_dice
 
-    # # @staticmethod
-    # def process_mask(self, salience_map, thr=0.025):
-    #     if len(salience_map.shape) > 3:
-    #         fg_targets = salience_map.mean(dim=1, keepdim=True)
-    #     else:
-    #         fg_targets = salience_map.mean(dim=0, keepdim=True).unsqueeze(0)
-    #     # 二值化
-    #     fg_targets = (fg_targets > thr).float()  # 大于阈值的设为 1，其余设为 0
-    #     bg_targets = 1 - fg_targets
-    #
-    #     return bg_targets, fg_targets
-
     def _forward_head(self, decoder_out: Tensor, mask_feature: Tensor,
                       attn_mask_target_size: Tuple[int, int]) -> Tuple[Tensor]:
-    # def _forward_head(self, decoder_out: Tensor, mask_feature: Tensor,
-    #                   attn_mask_target_size: Tuple[int, int], salience_map) -> Tuple[Tensor]:
         """Forward for head part which is called after every decoder layer.
 
         Args:
@@ -389,11 +357,12 @@ class Mask2FormerHead_Ort_Det(MaskFormerHead):
                     (batch_size * num_heads, num_queries, h, w).
         """
         decoder_out = self.transformer_decoder.post_norm(decoder_out)
+
         """Mask2Former_head"""
-        # shape (num_queries, batch_size, cls)
-        cls_pred = self.cls_embed(decoder_out)  # (4,21,22)
-        # shape (num_queries, batch_size, c)
-        mask_embed = self.mask_embed(decoder_out) # (4,21,256)
+        # # shape (num_queries, batch_size, c)
+        # cls_pred = self.cls_embed(decoder_out)  # (2,151,151)
+        # # shape (num_queries, batch_size, c)
+        # mask_embed = self.mask_embed(decoder_out)
         """IDF_pred_head"""
         # b, q, c = decoder_out.shape
         # kan_decoder_out = decoder_out.view(-1, c)  # 等价 decoder_out.reshape(-1, c)
@@ -406,33 +375,24 @@ class Mask2FormerHead_Ort_Det(MaskFormerHead):
         # # shape (batch_size, num_queries, c)
         # mask_embed = mask_embed.view(b, q, -1)  # (4,21,256)
         """MoK_pred_head"""
-        # b, q, c = decoder_out.shape
-        # kan_decoder_out = decoder_out  # decoder_out.view(-1, c)
-        # # shape (batch_size, num_queries, cls)
-        # cls_pred = self.cls_embed(kan_decoder_out)
-        # # shape (batch_size, num_queries, c)
-        # MoK_out = self.mask_embed(kan_decoder_out)
-        # # Residual Connection：5.23 mIoU(one epoch)
-        # mask_embed = MoK_out + kan_decoder_out
+        b, q, c = decoder_out.shape
+        kan_decoder_out = decoder_out  # decoder_out.view(-1, c)
+        # shape (batch_size, num_queries, cls)
+        cls_pred = self.cls_embed(kan_decoder_out)
+        # shape (batch_size, num_queries, c)
+        MoK_out = self.mask_embed(kan_decoder_out)
+        # Residual Connection：5.23 mIoU(one epoch)
+        mask_embed = MoK_out + kan_decoder_out
+        
 
         # shape (num_queries, batch_size, h, w)
-
         mask_pred = torch.einsum('bqc,bchw->bqhw', mask_embed, mask_feature)  # 张量运算函数，用于执行张量的批次矩阵乘法。
+
         attn_mask = F.interpolate(
             mask_pred,
             attn_mask_target_size,
             mode='bilinear',
             align_corners=False)
-
-        """Pseudo_maks Guidance"""
-        # salience_map = F.interpolate(
-        #     salience_map,
-        #     attn_mask_target_size,
-        #     mode='bilinear',
-        #     align_corners=False)
-        # bg_targets, fg_targets = self.process_mask(salience_map)
-        # attn_mask = fg_targets * attn_mask
-
         # shape (num_queries, batch_size, h, w) ->
         #   (batch_size * num_head, num_queries, h, w)
         attn_mask = attn_mask.flatten(2).unsqueeze(1).repeat(
@@ -466,31 +426,6 @@ class Mask2FormerHead_Ort_Det(MaskFormerHead):
         """
         batch_size = x[0].shape[0]
 
-        # salience_map = torch.cat([ds.pred_mask.unsqueeze(0) for ds in batch_data_samples], dim=0)
-
-        """Enhance features"""
-        # enhance_x = []
-        # for i in range(self.num_transformer_feat_level + 1):
-        #     # 并联处理：同时输入到PPA和RFAConv模块
-        #     ppa_out = self.PPA_Pixel_decoder_input[i](x[i])  # PPA模块输出
-        #     # rfa_out = self.RFAConv_Pixel_decoder_input[i](x[i])  # RFAConv模块输出
-        #
-        #     """使用加法融合两个特征：20.24mIoU 2th eps"""
-        #     # combined_out = ppa_out + rfa_out  #
-        #     """使用门控机制融合两个特征: 18.64mIoU 2th eps"""
-        #     # 计算门控权重（通过卷积和Sigmoid激活函数得到0-1之间的权重）
-        #     # gate_input = torch.cat([ppa_out, rfa_out], dim=1)  # 沿通道维度拼接
-        #     # gate_weights = torch.sigmoid(self.gate_convs[i](gate_input))  # 生成门控权重
-        #     # combined_out = gate_weights * ppa_out + (1 - gate_weights) * rfa_out  # 加权融合
-        #     # # Weighted Features
-        #     # gate_weights = torch.sigmoid(ppa_out)
-        #     # combined_out = gate_weights * rfa_out  # Gate mechanism
-        #
-        #     # enhance_x.append(combined_out)
-        #     enhance_x.append(ppa_out)
-        #
-        # x = enhance_x
-
         mask_features, multi_scale_memorys = self.pixel_decoder(x)
         # multi_scale_memorys (from low resolution to high resolmulti_scale_memorys = {list: 3} [tensor([[[[ 0.1756, -0.1501,  0.2914,  ...,  0.2418,  0.3628, -0.1717],\n          [ 0.1581,  0.0171,  0.7275,  ...,  0.1569, -0.0446, -0.6032],\n          [ 0.0893,  0.3125,  0.7001,  ...,  0.1637, -0.2129, -0.8917],\n          ...,\n          [ 0.7624,  0.7… Viewution)
         decoder_inputs = []
@@ -519,13 +454,13 @@ class Mask2FormerHead_Ort_Det(MaskFormerHead):
 
         cls_pred_list = []
         mask_pred_list = []
+        query_feat_list = []
         cls_pred, mask_pred, attn_mask = self._forward_head(
             query_feat, mask_features, multi_scale_memorys[0].shape[-2:])
-        # cls_pred, mask_pred, attn_mask = self._forward_head(
-        #     query_feat, mask_features, multi_scale_memorys[0].shape[-2:],
-        #     salience_map)
+
         cls_pred_list.append(cls_pred)
         mask_pred_list.append(mask_pred)
+        query_feat_list.append(query_feat)
 
         for i in range(self.num_transformer_decoder_layers):
             level_idx = i % self.num_transformer_feat_level
@@ -547,12 +482,10 @@ class Mask2FormerHead_Ort_Det(MaskFormerHead):
             cls_pred, mask_pred, attn_mask = self._forward_head(
                 query_feat, mask_features, multi_scale_memorys[
                                                (i + 1) % self.num_transformer_feat_level].shape[-2:])
-            # cls_pred, mask_pred, attn_mask = self._forward_head(
-            #     query_feat, mask_features, multi_scale_memorys[
-            #                                    (i + 1) % self.num_transformer_feat_level].shape[-2:],
-            #     salience_map)
 
             cls_pred_list.append(cls_pred)
             mask_pred_list.append(mask_pred)
+            query_feat_list.append(query_feat)
 
-        return cls_pred_list, mask_pred_list
+        # return cls_pred_list, mask_pred_list
+        return cls_pred_list, mask_pred_list, query_feat_list
