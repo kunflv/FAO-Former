@@ -6,17 +6,15 @@ _base_ = ['./_base_/default_runtime.py',
 
 # ----------------------------------------------------
 train_dataloader = dict(
-    batch_size=3,
+    batch_size=4,
     num_workers=2,
     sampler=dict(type='DefaultSampler', shuffle=True) # comment this row if training based on iteration
 )
 # ----------------------------------------------------
 
 custom_imports = dict(imports=[
-    'kan_mask2former.mask2former_head_ort_seg',
-    'kan_mask2former.custome_module.layers.MSD_FDConv_pixel_decoder',
-    # 'kan_mask2former.custome_module.layers.FDConv_pixel_decoder',
-    # 'kan_mask2former.custome_module.segmentors.k_encoder_decoder'
+    'kan_former.mask2former_head_ort_seg',
+    'kan_former.custome_module.layers.MSD_FDConv_pixel_decoder',
 ],
     allow_failed_imports=False)
 
@@ -41,8 +39,8 @@ model = dict(
         num_stages=4,
         out_indices=(0, 1, 2, 3),
         frozen_stages=-1,
-        norm_cfg=dict(type='BN', requires_grad=False),  # 单卡训练时type='BN'
-        style='pytorch',  # 多卡训练时type='SyncBN'
+        norm_cfg=dict(type='BN', requires_grad=False), 
+        style='pytorch', 
         init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet101')),
     decode_head=dict(
         type='Mask2FormerHead_Ort_Seg',  # Mask2FormerHead
@@ -172,37 +170,7 @@ optim_wrapper = dict(
             'level_embed': embed_multi,
         },
         norm_decay_mult=0.0))
-"""基于迭代次数的训练循环"""
-# # learning policy
-# param_scheduler = [
-#     dict(
-#         type='PolyLR',
-#         eta_min=0,
-#         power=0.9,
-#         begin=0,
-#         end=90000,
-#         by_epoch=False)
-# ]
-#
-# # training schedule for 90k
-# train_cfg = dict(type='IterBasedTrainLoop', max_iters=90000, val_interval=5000)
-# val_cfg = dict(type='ValLoop')
-# test_cfg = dict(type='TestLoop')
-# default_hooks = dict(
-#     timer=dict(type='IterTimerHook'),
-#     logger=dict(type='LoggerHook', interval=50, log_metric_by_epoch=False),
-#     param_scheduler=dict(type='ParamSchedulerHook'),
-#     checkpoint=dict(
-#         type='CheckpointHook', by_epoch=False, interval=5000,
-#         save_best='mIoU'),
-#     sampler_seed=dict(type='DistSamplerSeedHook'),
-#     visualization=dict(type='SegVisualizationHook'))
-#
-# # Default setting for scaling LR automatically
-# #   - `enable` means enable scaling LR automatically
-# #       or not by default.
-# #   - `base_batch_size` = (8 GPUs) x (2 samples per GPU).
-# auto_scale_lr = dict(enable=False, base_batch_size=16)
+
 """基于轮次的训练循环"""
 max_epochs = 60
 """learning rate"""
@@ -251,3 +219,4 @@ auto_scale_lr = dict(enable=False, base_batch_size=16)
 
 # """从给定路径将模型加载为预训练模型"""
 load_from = r"kan_mask2former/checkpoints/cityscapes_r101_mIoU_79.83.pth"
+
