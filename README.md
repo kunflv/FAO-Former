@@ -31,7 +31,7 @@ Download the [Cityscapes](https://www.cityscapes-dataset.com/) dataset.
 To train FAO-Former, run the training script below.
 
 ```
-python ./train.py ${CONFIG_FILE} --resume --cfg-options load_from=${CHECKPOINT}
+python tools/train.py  ${CONFIG_FILE} [optional arguments]
 ```
 
 For instance：
@@ -48,7 +48,8 @@ To test FAO-Former, run the testing script below.
 python ./test.py ${CONFIG_FILE} ${CHECKPOINT_FILE} [optional arguments]
 ```  
 
-For instance(Download checkpoint: [Baidu Drive](https://pan.baidu.com/s/1l93sSqKXTSlQbPUE88voDw) passwd: ihek)：
+For instance：
+<!-- For instance(Download checkpoint: [Baidu Drive](https://pan.baidu.com/s/1l93sSqKXTSlQbPUE88voDw) passwd: ihek)： -->
 
 ```
 python ./test.py configs/FAO_former_r101_MSDFDConvPD_8xb2-60epoch_cityscapes-512x1024.py checkpoints/ckpt_FAO_former_r101_Cityscapes.pth
