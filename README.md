@@ -21,7 +21,7 @@ grad-cam = 1.5.4
 1. Download the [Cityscapes](https://www.cityscapes-dataset.com/).
 2. Install Reqirements
 3. Edit the data path
-4. Train and Evaluation
+4. Train and Test
 
 # Dataset
 Download the [Cityscapes](https://www.cityscapes-dataset.com/) dataset.
