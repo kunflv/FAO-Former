@@ -48,8 +48,8 @@ To test FAO-Former, run the testing script below.
 python ./test.py ${CONFIG_FILE} ${CHECKPOINT_FILE} [optional arguments]
 ```  
 
-For instance：
-<!-- For instance(Download checkpoint: [Baidu Drive](https://pan.baidu.com/s/1l93sSqKXTSlQbPUE88voDw) passwd: ihek)： -->
+<!--For instance：-->
+For instance (trained weights: [Baidu Drive](https://pan.baidu.com/s/1l93sSqKXTSlQbPUE88voDw) passwd: ihek)： 
 
 ```
 python ./test.py configs/FAO_former_r101_MSDFDConvPD_8xb2-60epoch_cityscapes-512x1024.py checkpoints/ckpt_FAO_former_r101_Cityscapes.pth
