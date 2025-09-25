@@ -124,10 +124,10 @@ class MSDFDCPixelDecoder(BaseModule):
         # from top to down (low to high resolution)
         for i in range(self.num_input_levels):
             dim = in_channels[i]
-            # input_dat = FDConv(in_channels=dim, out_channels=dim,
-            #                    kernel_num=8, kernel_size=3, padding=1, bias=True)
-            input_dat = DeformableNeighborhoodAttention(dim=dim, num_heads=8,
-                             kernel_size=3, dilation=1)
+            input_dat = FDConv(in_channels=dim, out_channels=dim,
+                               kernel_num=8, kernel_size=3, padding=1, bias=True)
+            # input_dat = DeformableNeighborhoodAttention(dim=dim, num_heads=8,
+            #                  kernel_size=3, dilation=1)
             input_dat_list.append(input_dat)
         self.input_dats = ModuleList(input_dat_list)
 
@@ -283,4 +283,5 @@ class MSDFDCPixelDecoder(BaseModule):
 
         mask_feature = self.mask_feature(fused_outputs[-1])
         return mask_feature, multi_scale_features
+
 
