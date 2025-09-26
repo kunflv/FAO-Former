@@ -5,14 +5,14 @@ FAO-Former clarifies the modeling mechanism of query representations and the dec
 # Reqirements
 ```
 
-pytorch = 2.3.1
-python = 3.9.19
-cuda = 11.3
-numpy = 1.26.4
-mmcv = 2.1.0
-mmengine = 0.10.3
-mmsegmentation = 1.2.2
-grad-cam = 1.5.4
+pytorch == 2.3.1
+python == 3.9.19
+cuda == 11.3
+numpy == 1.26.4
+mmcv == 2.1.0
+mmengine == 0.10.3
+mmsegmentation == 1.2.2
+grad-cam == 1.5.4
 
 ```
 
